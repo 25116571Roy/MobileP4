@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/user_provider.dart';
 
@@ -35,22 +36,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  void _saveProfile() {
-    if (_formKey.currentState!.validate()) {
-      final provider = Provider.of<UserProvider>(context, listen: false);
-      final updatedUser = provider.user.copyWith(
-        name: _nameController.text.trim(),
-        email: _emailController.text.trim(),
-        isLoggedIn: true,
-      );
-      provider.updateUser(updatedUser);
-      ScaffoldMessenger.of(context).showSnackBar(
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final inputName = _nameController.text.trim();
+    final inputEmail = _emailController.text.trim();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final provider = Provider.of<UserProvider>(context, listen: false);
+    final dangerousPattern = RegExp(r'<[^>]*>|[<>]|script', caseSensitive: false);
+    if (dangerousPattern.hasMatch(inputName)) {
+      scaffoldMessenger.showSnackBar(
         const SnackBar(
-          content: Text('Profil berhasil disimpan'),
-          backgroundColor: Colors.green,
+          content: Text('Nama mengandung karakter berbahaya (misalnya <script>)!'),
+          backgroundColor: Colors.red,
         ),
       );
+      return;
     }
+    final prefs = await SharedPreferences.getInstance();
+    final savedEmail = prefs.getString('user_email') ?? '';
+
+    if (!mounted) return;
+    if (savedEmail.isNotEmpty &&
+        savedEmail.toLowerCase() == inputEmail.toLowerCase() &&
+        (!provider.user.isLoggedIn ||
+            provider.user.email.toLowerCase() != inputEmail.toLowerCase())) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('Email sudah digunakan! Silakan gunakan email lain.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final updatedUser = provider.user.copyWith(
+      name: inputName,
+      email: inputEmail,
+      isLoggedIn: true,
+    );
+    await provider.updateUser(updatedUser);
+
+    if (!mounted) return;
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Text('Profil berhasil disimpan'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   Future<void> _addFavorite() async {
