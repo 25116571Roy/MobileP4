@@ -58,9 +58,6 @@ class _UserProviderWrapperState extends State<UserProviderWrapper> {
     _loadUser();
     _loadTheme(); 
   }
-
-  
-
   // Memuat data user dari SharedPreferences
   Future<void> _loadUser() async {
     final prefs = await SharedPreferences.getInstance();
@@ -98,7 +95,6 @@ class _UserProviderWrapperState extends State<UserProviderWrapper> {
       _isLoading = false;
     });
   }
-
   // Logout: hapus data user (kecuali email)
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
