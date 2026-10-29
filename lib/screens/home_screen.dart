@@ -13,6 +13,7 @@ class HomeScreen extends StatelessWidget {
         title: const Text('Home'),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
+
         actions: [
           IconButton(
             icon: Icon(
@@ -44,6 +45,11 @@ class HomeScreen extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
+                    Text(
+                          'Aplikasi sudah dibuka ${provider.visitCount} kali',
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 16),
                     if (provider.user.isLoggedIn) ...[
                       Text(
                         'Email: ${provider.user.email}',

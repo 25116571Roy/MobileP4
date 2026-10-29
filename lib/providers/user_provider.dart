@@ -10,6 +10,7 @@ class UserProvider extends InheritedWidget {
   final bool isLoading;
   final bool isDarkMode;
   final VoidCallback toggleTheme;
+  final int visitCount;
 
   const UserProvider({
     super.key,
@@ -19,6 +20,7 @@ class UserProvider extends InheritedWidget {
     required this.isLoading,
     required this.isDarkMode,
     required this.toggleTheme,
+    required this.visitCount,
     required super.child,
   });
 
@@ -48,6 +50,7 @@ class _UserProviderWrapperState extends State<UserProviderWrapper> {
   User _user = User(name: '', email: '');
   bool _isLoading = true;
   bool _isDarkMode = false;
+  int _visitCount = 0;
 
   @override
   void initState() {
@@ -56,14 +59,19 @@ class _UserProviderWrapperState extends State<UserProviderWrapper> {
     _loadTheme(); 
   }
 
+  
+
   // Memuat data user dari SharedPreferences
   Future<void> _loadUser() async {
     final prefs = await SharedPreferences.getInstance();
     final name = prefs.getString('user_name') ?? '';
     final email = prefs.getString('user_email') ?? '';
     final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
+    final visitCount = (prefs.getInt('visit_count') ?? 0) + 1;
+    await prefs.setInt('visit_count', visitCount);
     setState(() {
       _user = User(name: name, email: email, isLoggedIn: isLoggedIn);
+      _visitCount = visitCount;
       _isLoading = false;
     });
   }
@@ -103,7 +111,7 @@ class _UserProviderWrapperState extends State<UserProviderWrapper> {
   Future<void> _toggleTheme() async {
     final newValue = !_isDarkMode;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('is_dark_mode', newValue); // key: is_dark_mode
+    await prefs.setBool('is_dark_mode', newValue);
     setState(() {
       _isDarkMode = newValue;
     });
@@ -118,6 +126,7 @@ class _UserProviderWrapperState extends State<UserProviderWrapper> {
       isLoading: _isLoading,
       isDarkMode: _isDarkMode,
       toggleTheme: _toggleTheme,
+      visitCount: _visitCount, 
 
       child: MaterialApp(
         title: 'State Preferences',
