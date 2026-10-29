@@ -8,6 +8,8 @@ class UserProvider extends InheritedWidget {
   final Function(User) updateUser;
   final VoidCallback logout;
   final bool isLoading;
+  final bool isDarkMode;
+  final VoidCallback toggleTheme;
 
   const UserProvider({
     super.key,
@@ -15,8 +17,11 @@ class UserProvider extends InheritedWidget {
     required this.updateUser,
     required this.logout,
     required this.isLoading,
+    required this.isDarkMode,
+    required this.toggleTheme,
     required super.child,
   });
+
   static UserProvider of(BuildContext context) {
     final provider = context.dependOnInheritedWidgetOfExactType<UserProvider>();
     assert(provider != null, 'UserProvider tidak ditemukan di context');
@@ -25,7 +30,9 @@ class UserProvider extends InheritedWidget {
 
   @override
   bool updateShouldNotify(UserProvider oldWidget) {
-    return oldWidget.user != user || oldWidget.isLoading != isLoading;
+    return oldWidget.user != user ||
+        oldWidget.isLoading != isLoading ||
+        oldWidget.isDarkMode != isDarkMode;
   }
 }
 
@@ -40,10 +47,13 @@ class UserProviderWrapper extends StatefulWidget {
 class _UserProviderWrapperState extends State<UserProviderWrapper> {
   User _user = User(name: '', email: '');
   bool _isLoading = true;
+  bool _isDarkMode = false;
+
   @override
   void initState() {
     super.initState();
     _loadUser();
+    _loadTheme(); 
   }
 
   // Memuat data user dari SharedPreferences
@@ -55,6 +65,14 @@ class _UserProviderWrapperState extends State<UserProviderWrapper> {
     setState(() {
       _user = User(name: name, email: email, isLoggedIn: isLoggedIn);
       _isLoading = false;
+    });
+  }
+
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isDark = prefs.getBool('is_dark_mode') ?? false;
+    setState(() {
+      _isDarkMode = isDark;
     });
   }
 
@@ -82,6 +100,14 @@ class _UserProviderWrapperState extends State<UserProviderWrapper> {
       _user = _user.copyWith(name: '', isLoggedIn: false);
     });
   }
+  Future<void> _toggleTheme() async {
+    final newValue = !_isDarkMode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_dark_mode', newValue); // key: is_dark_mode
+    setState(() {
+      _isDarkMode = newValue;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +116,26 @@ class _UserProviderWrapperState extends State<UserProviderWrapper> {
       updateUser: _updateUser,
       logout: _logout,
       isLoading: _isLoading,
-      child: widget.child,
+      isDarkMode: _isDarkMode,
+      toggleTheme: _toggleTheme,
+
+      child: MaterialApp(
+        title: 'State Preferences',
+        themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
+        ),
+        darkTheme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.deepPurple,
+            brightness: Brightness.dark,
+          ),
+          useMaterial3: true,
+          brightness: Brightness.dark,
+        ),
+        home: widget.child,
+      ),
     );
   }
 }

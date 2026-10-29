@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'providers/user_provider.dart';
 import 'screens/home_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -12,14 +13,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return UserProviderWrapper(
-      child: MaterialApp(
-        title: 'State Preferences',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        ),
-        home: const HomeScreen(),
-      ),
+    // MaterialApp kini ada di dalam UserProviderWrapper agar themeMode
+    // bisa dikendalikan langsung oleh state _isDarkMode
+    return const UserProviderWrapper(
+      child: HomeScreen(),
     );
   }
 }
