@@ -10,6 +10,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _favoriteController = TextEditingController();
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   bool _controllersInitialized = false;
@@ -27,6 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _favoriteController.dispose(); 
     super.dispose();
   }
 
@@ -47,7 +49,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
   }
+  Future<void> _addFavorite() async {
+      final item = _favoriteController.text.trim();
+      if (item.isEmpty) return;
 
+      final provider = UserProvider.of(context);
+      final exists = provider.favorites
+          .any((f) => f.toLowerCase() == item.toLowerCase());
+      if (exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Item sudah ada di daftar')),
+        );
+        return;
+      }
+
+    await provider.addFavorite(item);
+    _favoriteController.clear();
+}
   void _logout() {
     showDialog(
       context: context,
@@ -155,6 +173,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
                       ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Daftar Favorit (Hobi)',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _favoriteController,
+                              decoration: const InputDecoration(
+                                labelText: 'Tambah favorit',
+                                border: OutlineInputBorder(),
+                              ),
+                              onSubmitted: (_) => _addFavorite(),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton.filled(
+                            onPressed: _addFavorite,
+                            icon: const Icon(Icons.add),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (provider.favorites.isEmpty)
+                        const Text('Belum ada favorit', style: TextStyle(color: Colors.grey))
+                      else
+                        ...provider.favorites.map(
+                          (item) => ListTile(
+                            leading: const Icon(Icons.favorite, color: Colors.red),
+                            title: Text(item),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () => provider.removeFavorite(item),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 16),
                       const SizedBox(height: 16),
                       Card(
                         color: Colors.amber[50],
