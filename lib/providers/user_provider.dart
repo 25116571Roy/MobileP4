@@ -1,173 +1,103 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user.dart';
 
-class UserProvider extends InheritedWidget {
-  final User user;
-  final Function(User) updateUser;
-  final VoidCallback logout;
-  final bool isLoading;
-  final bool isDarkMode;
-  final VoidCallback toggleTheme;
-  final int visitCount;
-  final List<String> favorites;                      
-  final Future<void> Function(String) addFavorite;    
-  final Future<void> Function(String) removeFavorite; 
-
-  const UserProvider({
-    super.key,
-    required this.user,
-    required this.updateUser,
-    required this.logout,
-    required this.isLoading,
-    required this.isDarkMode,
-    required this.toggleTheme,
-    required this.visitCount,
-    required this.favorites,
-    required this.addFavorite,
-    required this.removeFavorite,
-    required super.child,
-  });
-
-  static UserProvider of(BuildContext context) {
-    final provider = context.dependOnInheritedWidgetOfExactType<UserProvider>();
-    assert(provider != null, 'UserProvider tidak ditemukan di context');
-    return provider!;
-  }
-
-  @override
-  bool updateShouldNotify(UserProvider oldWidget) {
-    return oldWidget.user != user ||
-        oldWidget.isLoading != isLoading ||
-        oldWidget.isDarkMode != isDarkMode ||
-        oldWidget.favorites != favorites; 
-  }
-}
-
-// StatefulWidget yang membungkus InheritedWidget
-class UserProviderWrapper extends StatefulWidget {
-  final Widget child;
-  const UserProviderWrapper({super.key, required this.child});
-  @override
-  State<UserProviderWrapper> createState() => _UserProviderWrapperState();
-}
-
-class _UserProviderWrapperState extends State<UserProviderWrapper> {
+class UserProvider extends ChangeNotifier {
   User _user = User(name: '', email: '');
   bool _isLoading = true;
   bool _isDarkMode = false;
   int _visitCount = 0;
-  List<String> _favorites = [];                      
+  List<String> _favorites = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadUser();
-    _loadTheme(); 
+  User get user => _user;
+  bool get isLoading => _isLoading;
+  bool get isDarkMode => _isDarkMode;
+  int get visitCount => _visitCount;
+  List<String> get favorites => _favorites;
+
+  UserProvider() {
+    _loadInitialData();
   }
-  // Memuat data user dari SharedPreferences
-  Future<void> _loadUser() async {
+  static UserProvider of(BuildContext context, {bool listen = true}) {
+    return Provider.of<UserProvider>(context, listen: listen);
+  }
+  Future<void> _loadInitialData() async {
     final prefs = await SharedPreferences.getInstance();
     final name = prefs.getString('user_name') ?? '';
     final email = prefs.getString('user_email') ?? '';
     final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
+    final isDark = prefs.getBool('is_dark_mode') ?? false;
     final visitCount = (prefs.getInt('visit_count') ?? 0) + 1;
     final favorites = prefs.getStringList('favorites') ?? [];
+
     await prefs.setInt('visit_count', visitCount);
-    setState(() {
-      _user = User(name: name, email: email, isLoggedIn: isLoggedIn);
-      _visitCount = visitCount;
-      _favorites = favorites;
-      _isLoading = false;
-    });
+
+    _user = User(name: name, email: email, isLoggedIn: isLoggedIn);
+    _isDarkMode = isDark;
+    _visitCount = visitCount;
+    _favorites = favorites;
+    _isLoading = false;
+    notifyListeners();
   }
 
-  Future<void> _loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isDark = prefs.getBool('is_dark_mode') ?? false;
-    setState(() {
-      _isDarkMode = isDark;
-    });
-  }
+  Future<void> updateUser(User newUser) async {
+    _isLoading = true;
+    notifyListeners();
 
-  // Menyimpan data user ke SharedPreferences
-  Future<void> _updateUser(User newUser) async {
-    setState(() {
-      _isLoading = true;
-    });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_name', newUser.name);
     await prefs.setString('user_email', newUser.email);
     await prefs.setBool('is_logged_in', newUser.isLoggedIn);
-    setState(() {
-      _user = newUser;
-      _isLoading = false;
-    });
+
+    _user = newUser;
+    _isLoading = false;
+    notifyListeners();
   }
 
-  Future<void> _addFavorite(String item) async {
-    final newList = [..._favorites, item];                  
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('favorites', newList);
-    if (!mounted) return;
-    setState(() => _favorites = newList);}
-
-Future<void> _removeFavorite(String item) async {
-    final newList = _favorites.where((f) => f != item).toList();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('favorites', newList);
-    if (!mounted) return;
-    setState(() => _favorites = newList);}
-  // Logout: hapus data user (kecuali email)
-  Future<void> _logout() async {
+  Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user_name');
     await prefs.setBool('is_logged_in', false);
-    setState(() {
-      _user = _user.copyWith(name: '', isLoggedIn: false);
-    });
+
+    _user = _user.copyWith(name: '', isLoggedIn: false);
+    notifyListeners();
   }
-  Future<void> _toggleTheme() async {
-    final newValue = !_isDarkMode;
+
+  Future<void> toggleTheme() async {
+    _isDarkMode = !_isDarkMode;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('is_dark_mode', newValue);
-    setState(() {
-      _isDarkMode = newValue;
-    });
+    await prefs.setBool('is_dark_mode', _isDarkMode);
+    notifyListeners();
   }
+
+  Future<void> addFavorite(String item) async {
+    final newList = [..._favorites, item];
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('favorites', newList);
+    _favorites = newList;
+    notifyListeners();
+  }
+
+  Future<void> removeFavorite(String item) async {
+    final newList = _favorites.where((f) => f != item).toList();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('favorites', newList);
+    _favorites = newList;
+    notifyListeners();
+  }
+}
+
+class UserProviderWrapper extends StatelessWidget {
+  final Widget child;
+  const UserProviderWrapper({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return UserProvider(
-      user: _user,
-      updateUser: _updateUser,
-      logout: _logout,
-      isLoading: _isLoading,
-      isDarkMode: _isDarkMode,
-      toggleTheme: _toggleTheme,
-      visitCount: _visitCount,
-      favorites: _favorites,                                    
-      addFavorite: _addFavorite,                                
-      removeFavorite: _removeFavorite, 
-
-      child: MaterialApp(
-        title: 'State Preferences',
-        themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          useMaterial3: true,
-        ),
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.deepPurple,
-            brightness: Brightness.dark,
-          ),
-          useMaterial3: true,
-          brightness: Brightness.dark,
-        ),
-        home: widget.child,
-      ),
+    return ChangeNotifierProvider(
+      create: (_) => UserProvider(),
+      child: child,
     );
   }
 }
